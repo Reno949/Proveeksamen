@@ -7,20 +7,22 @@
 </head>
 <body>
 
+    <!-- viser hvem som er logget inn + logg ut knapp -->
+    <div class="topbar">
+        <span id="brukernavn"></span>
+        <button onclick="loggUt()">Logg ut</button>
+    </div>
+
     <h1>Bestill fly</h1>
 
     <div class="box">
-
         <input type="text" id="from" placeholder="Fra">
         <input type="text" id="to" placeholder="Til">
         <input type="date" id="date">
-
         <button onclick="bookFlight()">Bestill</button>
-
     </div>
 
     <h2>Bestillinger</h2>
-
     <ul id="list"></ul>
 
     <script src="script.js"></script>

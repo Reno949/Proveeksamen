@@ -1,102 +1,64 @@
 const express = require("express")
 const sqlite3 = require("sqlite3").verbose()
+const crypto = require("crypto")
 
 const app = express()
-const PORT = 3000
-
-// kobler til database
 const db = new sqlite3.Database("database.db")
 
-// lar server lese json
 app.use(express.json())
-
-// viser filer fra public mappen
 app.use(express.static("public"))
 
-// test side
-app.get("/", (req, res) => {
-    res.sendFile(__dirname + "/public/index.html")
-})
+// lager tabeller
+db.run(`CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, fromCity TEXT, toCity TEXT, date TEXT)`)
+db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)`)
+db.run(`CREATE TABLE IF NOT EXISTS tokens (token TEXT, username TEXT)`)
 
-// lager tabell hvis den ikke finnes
-db.run(`
-CREATE TABLE IF NOT EXISTS bookings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fromCity TEXT,
-    toCity TEXT,
-    date TEXT
-)
-`)
+// krypterer passord
+const hash = (p) => crypto.createHash("sha256").update(p).digest("hex")
 
-// henter alle bookings
-app.get("/bookings", (req, res) => {
+// sjekker token
+function sjekkToken(req, res, next) {
+    db.get("SELECT * FROM tokens WHERE token = ?", [req.headers["token"]], (err, row) => {
+        if (!row) return res.status(401).json({ message: "ikke logget inn" })
+        req.username = row.username
+        next()
+    })
+}
 
-    db.all("SELECT * FROM bookings", [], (err, rows) => {
-
-        if (err) {
-            res.status(500).json(err)
-            return
-        }
-
-        res.json(rows)
+// registrer
+app.post("/signup", (req, res) => {
+    db.run("INSERT INTO users (username, password) VALUES (?, ?)", [req.body.username, hash(req.body.password)], function(err) {
+        if (err) return res.status(400).json({ message: "brukernavn er tatt" })
+        res.json({ message: "bruker opprettet! logg inn nå" })
     })
 })
 
-// legger til booking
-app.post("/bookings", (req, res) => {
-
-    let from = req.body.from
-    let to = req.body.to
-    let date = req.body.date
-
-    // sjekker at alt er fylt inn
-    if (!from || !to || !date) {
-        res.status(400).json({
-            message: "mangler data"
-        })
-        return
-    }
-
-    // legger inn i databasen
-    db.run(
-        "INSERT INTO bookings (fromCity, toCity, date) VALUES (?, ?, ?)",
-        [from, to, date],
-        function(err) {
-
-            if (err) {
-                res.status(500).json(err)
-                return
-            }
-
-            res.json({
-                id: this.lastID,
-                message: "booking lagret"
-            })
-        }
-    )
+// logg inn
+app.post("/login", (req, res) => {
+    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [req.body.username, hash(req.body.password)], (err, user) => {
+        if (!user) return res.status(401).json({ message: "feil brukernavn eller passord" })
+        const token = crypto.randomBytes(32).toString("hex")
+        db.run("INSERT INTO tokens (token, username) VALUES (?, ?)", [token, req.body.username])
+        res.json({ token })
+    })
 })
 
-// sletter booking
-app.delete("/bookings/:id", (req, res) => {
-
-    db.run(
-        "DELETE FROM bookings WHERE id = ?",
-        [req.params.id],
-        function(err) {
-
-            if (err) {
-                res.status(500).json(err)
-                return
-            }
-
-            res.json({
-                message: "booking slettet"
-            })
-        }
-    )
+// hent bookings
+app.get("/bookings", sjekkToken, (req, res) => {
+    db.all("SELECT * FROM bookings", [], (err, rows) => res.json(rows))
 })
 
-// starter server
-app.listen(PORT, () => {
-    console.log("server kjører på http://localhost:3000")
+// legg til booking
+app.post("/bookings", sjekkToken, (req, res) => {
+    const { from, to, date } = req.body
+    db.run("INSERT INTO bookings (fromCity, toCity, date) VALUES (?, ?, ?)", [from, to, date], function(err) {
+        res.json({ id: this.lastID })
+    })
 })
+
+// slett booking
+app.delete("/bookings/:id", sjekkToken, (req, res) => {
+    db.run("DELETE FROM bookings WHERE id = ?", [req.params.id], () => res.json({ message: "slettet" }))
+})
+
+app.listen(3000, () => console.log("server kjører på http://localhost:3000"))

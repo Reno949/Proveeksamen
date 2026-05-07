@@ -22,3 +22,12 @@ button {
 li {
     margin: 10px;
 }
+/* topbar med brukernavn og logg ut */
+.topbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 20px;
+    background-color: #2d2d2d;
+}
