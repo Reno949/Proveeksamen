@@ -1,10 +1,8 @@
-/* enkel styling så det ser litt ryddig ut */
-
 body {
-    font-family: Arial;
     background-color: #1e1e1e;
     color: white;
     text-align: center;
+    font-family: Arial;
 }
 
 .box {

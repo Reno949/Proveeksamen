@@ -4,12 +4,21 @@ const sqlite3 = require("sqlite3").verbose()
 const app = express()
 const PORT = 3000
 
+// kobler til database
 const db = new sqlite3.Database("database.db")
 
+// lar server lese json
 app.use(express.json())
+
+// viser filer fra public mappen
 app.use(express.static("public"))
 
-// lager tabell
+// test side
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + "/public/index.html")
+})
+
+// lager tabell hvis den ikke finnes
 db.run(`
 CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,7 +28,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 )
 `)
 
-// henter bookings
+// henter alle bookings
 app.get("/bookings", (req, res) => {
 
     db.all("SELECT * FROM bookings", [], (err, rows) => {
@@ -40,6 +49,15 @@ app.post("/bookings", (req, res) => {
     let to = req.body.to
     let date = req.body.date
 
+    // sjekker at alt er fylt inn
+    if (!from || !to || !date) {
+        res.status(400).json({
+            message: "mangler data"
+        })
+        return
+    }
+
+    // legger inn i databasen
     db.run(
         "INSERT INTO bookings (fromCity, toCity, date) VALUES (?, ?, ?)",
         [from, to, date],
@@ -51,7 +69,8 @@ app.post("/bookings", (req, res) => {
             }
 
             res.json({
-                id: this.lastID
+                id: this.lastID,
+                message: "booking lagret"
             })
         }
     )
