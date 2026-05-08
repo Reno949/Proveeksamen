@@ -19,7 +19,7 @@ async function loggInn() {
         window.location.href = "/"
     } else {
         document.getElementById("melding").innerText = data.message
-    }
+    } 
 }
 
 // registrerer ny bruker
